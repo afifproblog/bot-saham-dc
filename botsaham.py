@@ -10,9 +10,13 @@ import logging
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 # ==============================================================================
-# 1. KONFIGURASI WEBHOOK DISCORD
+# 1. KONFIGURASI WEBHOOK DISCORD (OWNER BY ID DC: KRIMKEK)
 # ==============================================================================
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1551293393706156196/Xoinr7QMG_E_ZP1ezX63GRfPHj-41fzWmN05hGz6cG-JBT6oWI-h2pPFjb44Bsjjx0v6"
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # ==============================================================================
 # 2. DAFTAR MASTER SAHAM IDX AKTIF (SUDAH DIBERSIHKAN DARI DELISTED)
