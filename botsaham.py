@@ -1,10 +1,12 @@
-import yfinance as yf
-import pandas as pd
-import ta
-import requests
-from datetime import datetime
+import os
 import time
 import logging
+import requests
+from datetime import datetime
+from dotenv import load_dotenv
+import pandas as pd
+import ta
+import yfinance as yf
 
 # Bungkam log error bawaan yfinance agar terminal bersih
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -12,10 +14,7 @@ logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 # ==============================================================================
 # 1. KONFIGURASI WEBHOOK DISCORD (OWNER BY ID DC: KRIMKEK)
 # ==============================================================================
-import os
-from dotenv import load_dotenv
 load_dotenv()
-
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # ==============================================================================
@@ -91,6 +90,10 @@ def get_all_idx_tickers():
 # 3. PENGIRIM NOTIFIKASI DISCORD (EMBED)
 # ==============================================================================
 def send_discord_alert(emiten, kategori, price, rsi, vol_ratio, turnover_rp, stoch_k, ma20):
+    if not DISCORD_WEBHOOK_URL:
+        print("[ERROR] DISCORD_WEBHOOK_URL tidak ditemukan di .env")
+        return
+
     turnover_miliar = turnover_rp / 1_000_000_000
     embed_data = {
         "title": f"🚨 [SWING RADAR ALERT] - {emiten}",
@@ -112,6 +115,41 @@ def send_discord_alert(emiten, kategori, price, rsi, vol_ratio, turnover_rp, sto
         requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed_data]}, timeout=10)
     except Exception as e:
         print(f"Gagal kirim notif {emiten}: {e}")
+
+def send_empty_radar_alert(total_screened):
+    if not DISCORD_WEBHOOK_URL:
+        print("[ERROR] DISCORD_WEBHOOK_URL tidak ditemukan di .env")
+        return
+
+    now_str = datetime.now().strftime("%d-%m-%Y %H:%M")
+    embed_data = {
+        "title": "📡 [SWING RADAR SCANNER] - STANDBY MODE",
+        "description": f"Pemindaian teknikal terhadap **{total_screened} saham aktif BEI** selesai.",
+        "color": 15844367,  # Emas / Amber
+        "fields": [
+            {
+                "name": "📊 Hasil Screening Hari Ini",
+                "value": "```diff\n- Tidak ditemukan saham potensial per hari ini.\n```",
+                "inline": False
+            },
+            {
+                "name": "🔍 Kriteria Screening",
+                "value": "• Volume: **1.40x - 1.70x** rata-rata 20 hari\n• RSI (14): **30.0 - 45.0** (Pantulan Bawah)\n• Likuiditas: Turnover rata-rata **> Rp2 Miliar**\n• Harga: **> Rp100**",
+                "inline": False
+            },
+            {
+                "name": "💡 Rekomendasi",
+                "value": "Kondisi market belum membentuk setup akumulasi ideal. Pertahankan alokasi cash & tunggu penutupan bursa berikutnya.",
+                "inline": False
+            }
+        ],
+        "footer": {"text": f"IDX Swing Radar • {now_str}"}
+    }
+    try:
+        requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed_data]}, timeout=10)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fallback embed (0 saham) berhasil dikirim ke Discord.")
+    except Exception as e:
+        print(f"Gagal kirim fallback notif: {e}")
 
 # ==============================================================================
 # 4. ENGINE FILTER & PEMINDAIAN
@@ -180,6 +218,10 @@ def scan_market():
             continue
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Pemindaian selesai! Ditemukan {hasil_lolos} saham potensial.")
+
+    # FALLBACK: Kirim embed informatif jika tidak ada saham yang lolos kriteria
+    if hasil_lolos == 0:
+        send_empty_radar_alert(total)
 
 if __name__ == "__main__":
     scan_market()
